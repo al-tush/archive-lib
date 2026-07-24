@@ -1,0 +1,4 @@
+# Core: transcript ingest/search (archive_lib). Install into whichever
+# interpreter runs archive/scripts/query.py --semantic/--hybrid or embed.py.
+sentence-transformers==2.7.0
+numpy==1.26.4

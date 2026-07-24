@@ -40,6 +40,22 @@ diff -rq <project-a>/archive/scripts <project-b>/archive/scripts
 Differences should appear only in `config.py` and `README.md` — anything else
 means logic leaked back into a per-project wrapper.
 
+## Requirements
+
+- `pip install -r requirements.txt` — core ingest/search (`archive_lib`).
+- `pip install -r requirements-diarization.txt` — call diarization / voice
+  enrollment (`sherpa-models/`), **in a separate venv** — see
+  [transcription_rules.md](transcription_rules.md) for why these two must not
+  share an environment.
+- Transcription itself uses `whisper-cli` (whisper.cpp) and `ffmpeg` as
+  external command-line tools, not pip packages.
+
+## License
+
+MIT — see [LICENSE](LICENSE). `sherpa-models/offline-speaker-diarization-example.py`
+is an unmodified upstream sherpa-onnx example (Apache License 2.0); see the
+notice at the top of that file.
+
 ## Local-only files (gitignored)
 
 A few files hold machine-specific data (real project names, paths, call

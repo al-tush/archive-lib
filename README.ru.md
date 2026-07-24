@@ -44,6 +44,21 @@ diff -rq <project-a>/archive/scripts <project-b>/archive/scripts
 Различия должны быть только в `config.py` и `README.md` — что-либо ещё
 означает, что логика просочилась обратно в обёртку конкретного проекта.
 
+## Зависимости
+
+- `pip install -r requirements.txt` — основной ingest/поиск (`archive_lib`).
+- `pip install -r requirements-diarization.txt` — диаризация звонков / voice
+  enrollment (`sherpa-models/`), **в отдельном venv** — почему их нельзя
+  ставить в одно окружение, см. [transcription_rules.md](transcription_rules.md).
+- Сама транскрипция использует `whisper-cli` (whisper.cpp) и `ffmpeg` как
+  внешние CLI-инструменты, не pip-пакеты.
+
+## Лицензия
+
+MIT — см. [LICENSE](LICENSE). `sherpa-models/offline-speaker-diarization-example.py`
+— неизменённый пример из upstream sherpa-onnx (Apache License 2.0); см.
+пометку в начале этого файла.
+
 ## Локальные файлы (gitignored)
 
 Несколько файлов хранят машинно-специфичные данные (реальные имена проектов,

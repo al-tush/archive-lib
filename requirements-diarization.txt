@@ -1,0 +1,8 @@
+# Call diarization / voice-enrollment tooling (sherpa-models/). Install into
+# a SEPARATE arm64-native venv, not the one used for requirements.txt above —
+# see transcription_rules.md ("Почему не WhisperX/pyannote") for why mixing
+# these broke semantic search for every project on this machine once already.
+sherpa-onnx==1.13.4
+soundfile==0.14.0
+librosa==0.11.0
+numpy==2.4.6

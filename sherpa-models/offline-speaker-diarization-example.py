@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 # Copyright (c)  2024  Xiaomi Corporation
+#
+# Unmodified example from the sherpa-onnx project (Apache License 2.0):
+# https://github.com/k2-fsa/sherpa-onnx/blob/master/python-api-examples/offline-speaker-diarization.py
+# Kept here as a reference/fallback; the rest of this repo is MIT-licensed
+# (see ../LICENSE) and does not otherwise depend on this file.
 
 """
 This file shows how to use sherpa-onnx Python API for
