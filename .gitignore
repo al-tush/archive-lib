@@ -1,0 +1,17 @@
+.claude/settings.local.json
+whisper-models/
+whisperx-venv/
+sherpa-venv/
+sherpa-models/*.onnx
+sherpa-models/*.tar.bz2
+sherpa-models/sherpa-onnx-pyannote-segmentation-3-0/
+sherpa-models/voice_profiles.json
+
+# Machine-local specifics — real project names/paths, personal notes.
+# See registry_local.example.py and transcription_rules.md for the templates.
+archive_lib/registry_local.py
+altush_config.md
+TRANSCRIPTION.md
+
+__pycache__/
+*.pyc
