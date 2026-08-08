@@ -21,6 +21,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 
 from .config import ProjectConfig
+from .hybrid_words import normalize_hybrid_words
 from .schema import FILE_CHUNKS_SCHEMA
 
 MIN_CHUNK_CHARS = 80
@@ -162,6 +163,7 @@ def index_file(conn: sqlite3.Connection, model: SentenceTransformer,
 
     mtime = get_file_mtime(full_path)
     text = normalize_frontmatter(full_path.read_text(encoding="utf-8"))
+    text = normalize_hybrid_words(text, warn_context=rel_path)
     chunks = split_into_chunks(text)
     valid = [(sec, c) for sec, c in chunks if len(c) >= MIN_CHUNK_CHARS]
 

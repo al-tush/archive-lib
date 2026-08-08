@@ -25,6 +25,7 @@ import time
 from pathlib import Path
 
 from .config import ProjectConfig
+from .hybrid_words import normalize_hybrid_words
 from .schema import open_db
 from .timeutil import LOCAL_TZ
 
@@ -143,6 +144,8 @@ def parse_message_event(event: dict) -> dict | None:
             t = event.get("text") or event.get("content")
             if isinstance(t, str):
                 text = t
+
+    text = normalize_hybrid_words(text, warn_context=f"{session_id[:8]}:{uuid[:8]}")
 
     return {
         "message_id": uuid,

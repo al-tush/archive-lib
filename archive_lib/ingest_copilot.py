@@ -32,6 +32,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import ProjectConfig
+from .hybrid_words import normalize_hybrid_words
 from .ingest import date_from_iso, short_uuid
 from .schema import open_db
 
@@ -241,7 +242,9 @@ def insert_session(session: dict, conn, dry_run: bool = False,
                     "timestamp": ts,
                     "role": "user",
                     "type": "user",
-                    "text_content": turn["user_text"],
+                    "text_content": normalize_hybrid_words(
+                        turn["user_text"], warn_context=f"{session_id[:8]}:{req_id[:8]}"
+                    ),
                     "has_tool_use": 0,
                     "tool_names": None,
                     "raw_json": json.dumps(
@@ -260,7 +263,9 @@ def insert_session(session: dict, conn, dry_run: bool = False,
                     "timestamp": ts,
                     "role": "assistant",
                     "type": "assistant",
-                    "text_content": turn["ai_text"],
+                    "text_content": normalize_hybrid_words(
+                        turn["ai_text"], warn_context=f"{session_id[:8]}:{resp_id[:8]}"
+                    ),
                     "has_tool_use": 0,
                     "tool_names": None,
                     "raw_json": json.dumps(
