@@ -2,6 +2,8 @@
 whisper-models/
 whisperx-venv/
 sherpa-venv/
+gigaam-venv/
+pyannote-venv/
 sherpa-models/*.onnx
 sherpa-models/*.tar.bz2
 sherpa-models/sherpa-onnx-pyannote-segmentation-3-0/

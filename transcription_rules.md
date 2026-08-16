@@ -141,4 +141,40 @@ python (`/opt/homebrew`), не в общий x86_64 python3.10. Тяжёлые M
 всегда в изолированный venv, никогда в общее окружение, которым пользуется
 RAG-инструментарий archive-lib.
 
+## pyannote.audio 4.0 — когда sherpa-onnx проваливается на смешанном канале
+
+На записях без гарнитуры (оба канала Cap несут смешанный звук обеих сторон —
+см. диагностику выше) sherpa-onnx-диаризация может давать почти полностью
+несбалансированный результат (один спикер — почти вся запись, другой — считаные
+секунды), даже когда разговор реально двусторонний. Наблюдалось дважды
+(Мурзин 27.07.2026, Кашин 12.08.2026: 16.8 сек из 43 минут). В этом случае —
+переключаться на `pyannote.audio` 4.0 (arm64-native venv, НЕ x86_64 из
+«Почему не WhisperX/pyannote» выше — это другой, безопасный путь).
+
+**Установка (venv не сохраняется между сессиями на этой машине — пересобирать
+по необходимости):**
+```bash
+/opt/homebrew/bin/python3.11 -m venv pyannote-venv
+source pyannote-venv/bin/activate
+pip install pyannote.audio soundfile
+```
+HF_TOKEN — в `archive-lib/.env` (`HF_TOKEN=...`), модель
+`pyannote/speaker-diarization-community-1` (кэш уже может быть в
+`~/.cache/huggingface/hub/`).
+
+**Две недокументированные ловушки версии 4.0.7 (обе стоили отдельного прогона
+впустую 12.08.2026 — проверять сразу, не через диагностику зависшего процесса):**
+- `Pipeline.from_pretrained(...)` по умолчанию НЕ уходит на MPS — без явного
+  `pipeline.to(torch.device("mps"))` считает на CPU (в разы медленнее; на
+  43-минутной записи CPU не уложился в ~20 минут, MPS — единицы минут).
+  Проверять `torch.backends.mps.is_available()` **вне sandbox** — внутри
+  sandbox GPU недоступен и проверка ложно вернёт `False`.
+- Результат вызова пайплайна — не `Annotation` с `.itertracks()`, а датакласс
+  `DiarizeOutput`. Сегменты — через `.serialize()["diarization"]`
+  (список `{"start", "end", "speaker"}`, speaker вида `"SPEAKER_00"`).
+
+После этого — тот же `enroll_voice.py identify` (sherpa-venv) и
+`merge_transcript_diarization.py` из `sherpa-models/` работают на выходе
+pyannote без изменений (тот же JSON-формат `{start, end, speaker}`).
+
 <!-- LOCAL_NOTES -->
