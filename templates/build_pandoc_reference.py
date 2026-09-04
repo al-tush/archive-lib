@@ -69,6 +69,31 @@ def set_box_border(style, color='D0D0D0', sz=4):
         pbdr.append(el)
     pPr.append(pbdr)
 
+def set_table_borders(style, color='808080', sz=4):
+    """Видимые границы у всех ячеек таблиц pandoc (стиль называется 'Table').
+    sz — в 1/8 pt: 4 = 0.5pt. По умолчанию таблицы pandoc без границ."""
+    tblPr = style.element.find(qn('w:tblPr'))
+    if tblPr is None:
+        tblPr = OxmlElement('w:tblPr')
+        style.element.append(tblPr)
+    old = tblPr.find(qn('w:tblBorders'))
+    if old is not None:
+        tblPr.remove(old)
+    borders = OxmlElement('w:tblBorders')
+    for edge in ('top','left','bottom','right','insideH','insideV'):
+        el = OxmlElement(f'w:{edge}')
+        el.set(qn('w:val'), 'single')
+        el.set(qn('w:sz'), str(sz))
+        el.set(qn('w:space'), '0')
+        el.set(qn('w:color'), color)
+        borders.append(el)
+    # по схеме CT_TblPrBase w:tblBorders идёт после w:tblInd, перед w:tblCellMar
+    tbl_ind = tblPr.find(qn('w:tblInd'))
+    if tbl_ind is not None:
+        tbl_ind.addnext(borders)
+    else:
+        tblPr.insert(0, borders)
+
 NAVY = RGBColor(0x1F,0x3A,0x5F)
 SLATE = RGBColor(0x33,0x33,0x33)
 BODY_FONT = 'PT Sans'
@@ -145,6 +170,8 @@ vc = styles['Verbatim Char']
 vc.font.name = MONO_FONT
 vc.font.size = Pt(10.5)
 vc.font.color.rgb = RGBColor(0x8A,0x2B,0x06)
+
+set_table_borders(styles['Table'])
 
 d.save(OUT_PATH)
 os.remove(BASE_PATH)
