@@ -33,6 +33,9 @@ from .timeutil import LOCAL_TZ
 RELEVANT_TYPES = {"user", "assistant", "tool_result", "ai-title", "attachment", "system"}
 # Types we explicitly skip (internal Claude Code state).
 SKIP_TYPES = {"queue-operation", "last-prompt", "file-history-snapshot", "create", "update", "text"}
+# Event types that carry no content ingest.py or restore.py ever read (IDE/bridge
+# plumbing) — dropped entirely from the archived copy to save space.
+COPY_DROP_TYPES = SKIP_TYPES | {"file-history-delta", "bridge-session", "atis-latch", "mode"}
 
 # Common media types — extension fallback overrides for clarity (.jpg vs .jpe, etc.).
 MEDIA_TYPE_EXT = {
@@ -49,6 +52,31 @@ MEDIA_TYPE_EXT = {
 
 
 # --- Helpers ---------------------------------------------------------------
+
+def write_compacted_copy(src: Path, dest: Path) -> None:
+    """Copy a JSONL transcript to dest, dropping bytes neither ingest.py nor restore.py
+    ever read: whole events of COPY_DROP_TYPES, and the toolUseResult field on
+    user/assistant events (both consumers only use message.content there; toolUseResult
+    is read only as a fallback on the rare separate type=="tool_result" event).
+    Lines that fail to parse are copied through unchanged rather than dropped.
+    """
+    with src.open("r", encoding="utf-8") as fin, dest.open("w", encoding="utf-8") as fout:
+        for line in fin:
+            stripped = line.rstrip("\n")
+            if not stripped:
+                continue
+            try:
+                event = json.loads(stripped)
+            except json.JSONDecodeError:
+                fout.write(line if line.endswith("\n") else line + "\n")
+                continue
+            if isinstance(event, dict):
+                if event.get("type") in COPY_DROP_TYPES:
+                    continue
+                if event.get("type") in ("user", "assistant") and "toolUseResult" in event:
+                    del event["toolUseResult"]
+            fout.write(json.dumps(event, ensure_ascii=False) + "\n")
+
 
 def extract_text_and_tools(content) -> tuple[str, list[str]]:
     """From message.content (list of blocks), return (text_aggregate, tool_names)."""
@@ -632,8 +660,7 @@ def ingest_file(jsonl_path: Path, conn: sqlite3.Connection, copy_dest: Path | No
             new_name = f"{date}-{short_uuid(session_id)}.jsonl" if date else f"{session_id}.jsonl"
         dest = copy_dest / new_name
         copy_dest.mkdir(parents=True, exist_ok=True)
-        if not dest.exists() or dest.stat().st_size != jsonl_path.stat().st_size:
-            shutil.copy2(jsonl_path, dest)
+        write_compacted_copy(jsonl_path, dest)
         if is_subagent:
             meta_src = jsonl_path.with_suffix("").with_suffix(".meta.json")
             if meta_src.exists():
