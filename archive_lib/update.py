@@ -16,6 +16,7 @@ import subprocess
 import sys
 
 from .config import ProjectConfig
+from .pyenv import ensure_semantic_capable
 
 
 def run_step(label: str, cmd: list[str]) -> bool:
@@ -37,6 +38,11 @@ def main(config: ProjectConfig, argv: list[str]) -> int:
     parser.add_argument("--no-copilot", action="store_true",
                         help="skip ingest_copilot step")
     args = parser.parse_args(argv)
+
+    # embed.py/index_files.py need numpy+sentence_transformers; re-exec now so
+    # every subprocess below inherits the right sys.executable up front,
+    # instead of each child discovering it's on the wrong interpreter itself.
+    ensure_semantic_capable()
 
     scripts = config.scripts_dir
     python = sys.executable

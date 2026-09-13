@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Optional
 
 from .config import ProjectConfig
+from .pyenv import ensure_semantic_capable as _ensure_semantic_capable
 from .registry import KNOWN_ARCHIVES
 from .timeutil import LOCAL_TZ, LOCAL_TZ_LABEL
 
@@ -268,34 +269,6 @@ def _time_decay(timestamp: Optional[str]) -> float:
 def _cosine(a, b) -> float:
     import numpy as np
     return float(np.dot(a, b))  # vectors are pre-normalized
-
-
-# The plain `python3` on PATH resolves to whatever the shell picks up (Xcode's
-# bundled interpreter, system Python, ...) and has no reason to have
-# sentence_transformers installed. Only this pinned interpreter is known to
-# have it. If the running process lacks the module, re-exec under this one
-# instead of crashing — the caller shouldn't have to remember a PYTHON= prefix.
-_SEMANTIC_PYTHON = "/usr/local/opt/python@3.10/Frameworks/Python.framework/Versions/3.10/bin/python3.10"
-
-
-def _ensure_semantic_capable() -> None:
-    """If sentence_transformers isn't importable under sys.executable, re-exec
-    this process under _SEMANTIC_PYTHON. No-op if already capable, or if the
-    fallback interpreter is unavailable/is the one already running (in which
-    case the ModuleNotFoundError surfaces normally from _load_model)."""
-    try:
-        import sentence_transformers  # noqa: F401
-        return
-    except ModuleNotFoundError:
-        pass
-
-    fallback = Path(_SEMANTIC_PYTHON)
-    if not fallback.exists():
-        return
-    current = Path(sys.executable)
-    if current.exists() and current.samefile(fallback):
-        return  # already running under it — the ModuleNotFoundError is real
-    os.execv(str(fallback), [str(fallback)] + sys.argv)
 
 
 @functools.lru_cache(maxsize=2)

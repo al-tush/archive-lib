@@ -17,6 +17,10 @@ import sqlite3
 import sys
 from pathlib import Path
 
+from .pyenv import ensure_semantic_capable
+
+ensure_semantic_capable()
+
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
