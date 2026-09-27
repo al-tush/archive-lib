@@ -251,6 +251,7 @@ def insert_session(session: dict, conn, dry_run: bool = False,
                         {"requestId": req_id, "modelId": turn["model_id"]},
                         ensure_ascii=False,
                     ),
+                    "source": "copilot",
                 }
             )
 
@@ -272,6 +273,7 @@ def insert_session(session: dict, conn, dry_run: bool = False,
                         {"responseId": resp_id, "modelId": turn["model_id"]},
                         ensure_ascii=False,
                     ),
+                    "source": "copilot",
                 }
             )
 
@@ -308,9 +310,9 @@ def insert_session(session: dict, conn, dry_run: bool = False,
     cur.executemany(
         """INSERT INTO messages
            (message_id, session_id, parent_id, timestamp, role, type,
-            text_content, has_tool_use, tool_names, raw_json)
+            text_content, has_tool_use, tool_names, raw_json, source)
            VALUES (:message_id, :session_id, :parent_id, :timestamp, :role, :type,
-                   :text_content, :has_tool_use, :tool_names, :raw_json)""",
+                   :text_content, :has_tool_use, :tool_names, :raw_json, :source)""",
         messages,
     )
 

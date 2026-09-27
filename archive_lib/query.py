@@ -405,14 +405,43 @@ def search(conn: sqlite3.Connection, args) -> list[dict]:
     cur = conn.cursor()
 
     if args.session:
+        session_ids = {row[0] for row in cur.execute(
+            "SELECT session_id FROM sessions WHERE session_id LIKE ? || '%'",
+            (args.session,)
+        ).fetchall()}
+        # Pull in any session linked as a background-fork parent/child of a
+        # matched session — otherwise a session that continued in a
+        # backgrounded fork (new session_id, same content thread) silently
+        # shows only its earlier or later half depending on which id-prefix
+        # was searched. One hop is enough: forks chain parent->child, and
+        # detect_fork() always links against the single most-overlapping
+        # existing session, so a chain longer than one hop still resolves by
+        # following child_session_id forward / parent_session_id backward
+        # repeatedly until no new id appears.
+        frontier = set(session_ids)
+        while frontier:
+            placeholders = ",".join("?" * len(frontier))
+            linked = cur.execute(
+                f"""SELECT child_session_id, parent_session_id FROM session_links
+                    WHERE child_session_id IN ({placeholders})
+                       OR parent_session_id IN ({placeholders})""",
+                (*frontier, *frontier),
+            ).fetchall()
+            new_ids = {sid for pair in linked for sid in pair} - session_ids
+            session_ids |= new_ids
+            frontier = new_ids
+        if not session_ids:
+            return []
+
+        placeholders = ",".join("?" * len(session_ids))
         rows = cur.execute(
-            """SELECT m.message_id, m.session_id, m.timestamp, m.role, m.type,
+            f"""SELECT m.message_id, m.session_id, m.timestamp, m.role, m.type,
                       m.text_content, m.tool_names, s.title
                FROM messages m
                LEFT JOIN sessions s ON s.session_id = m.session_id
-               WHERE m.session_id LIKE ? || '%'
+               WHERE m.session_id IN ({placeholders})
                ORDER BY m.timestamp ASC""",
-            (args.session,)
+            tuple(session_ids)
         ).fetchall()
         return [dict(zip(
             ["message_id", "session_id", "timestamp", "role", "type",
@@ -802,9 +831,12 @@ def render_text(results: list[dict], full: bool, width: int = 100) -> str:
             title = (r.get("title") or "").strip()
             title_part = f" · {title[:60]}" if title else ""
             agent_part = ""
-            if r.get("source") == "subagent":
+            src = r.get("source")
+            if src == "subagent":
                 parent = short(r.get("parent_session_id") or "")
                 agent_part = f"  [agent:{r.get('agent_type') or '?'} ← {parent}]"
+            elif src and src != "claude":
+                agent_part = f"  [src:{src}]"
             parts.append(f"{shown:3}. [{ts}] {sid} {role}{title_part}{agent_part}{score_str}")
 
         if not full:
@@ -853,8 +885,10 @@ def main(config: ProjectConfig, argv: list[str]) -> int:
                         help="Limit to last 30 days (auto sets --from)")
     parser.add_argument("--has-tool-use", action="store_true",
                         help="Only assistant messages that called tools")
-    parser.add_argument("--source", choices=["claude", "copilot", "subagent"],
-                        help="Filter by source (claude, copilot, or subagent)")
+    parser.add_argument("--source", metavar="NAME",
+                        help="Filter by source (e.g. claude, copilot, subagent — any value "
+                             "written to sessions.source/messages.source by an ingest script, "
+                             "not a fixed list)")
     parser.add_argument("--include-subagents", action="store_true",
                         help="Include subagent transcripts (Task/Agent calls) alongside normal results. "
                              "Excluded by default — noisy, requires 'ingest.py --include-subagents' first.")

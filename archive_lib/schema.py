@@ -33,8 +33,15 @@ CREATE TABLE IF NOT EXISTS sessions (
     spawned_from_message_id  TEXT  -- message_id of the parent's Agent tool_use call
 );
 
+-- PK is (source, message_id), not message_id alone: a backgrounded Claude Code
+-- session forks into a new session_id that carries forward the SAME message
+-- uuids as its parent (see session_links below) — those are legitimate
+-- same-source duplicates, filtered out explicitly by ingest.py's fork
+-- detection, not by relying on this PK to reject them. The composite key's
+-- job is to keep that namespace separate from a future second source (e.g.
+-- GPT export) that could otherwise coincidentally reuse an id string.
 CREATE TABLE IF NOT EXISTS messages (
-    message_id    TEXT PRIMARY KEY,
+    message_id    TEXT NOT NULL,
     session_id    TEXT NOT NULL,
     parent_id     TEXT,
     timestamp     TEXT NOT NULL,
@@ -44,6 +51,8 @@ CREATE TABLE IF NOT EXISTS messages (
     has_tool_use  INTEGER,
     tool_names    TEXT,
     raw_json      TEXT,
+    source        TEXT NOT NULL DEFAULT 'claude',
+    PRIMARY KEY (source, message_id),
     FOREIGN KEY (session_id) REFERENCES sessions(session_id)
 );
 
@@ -65,6 +74,7 @@ CREATE TABLE IF NOT EXISTS attachments (
     size_bytes    INTEGER,
     extracted     INTEGER NOT NULL DEFAULT 0,
     error         TEXT,
+    source        TEXT NOT NULL DEFAULT 'claude',
     FOREIGN KEY (message_id) REFERENCES messages(message_id),
     FOREIGN KEY (session_id) REFERENCES sessions(session_id)
 );
@@ -82,6 +92,7 @@ CREATE TABLE IF NOT EXISTS artifacts (
     tool_name       TEXT NOT NULL,
     file_path       TEXT NOT NULL,
     content_preview TEXT,
+    source          TEXT NOT NULL DEFAULT 'claude',
     FOREIGN KEY (session_id) REFERENCES sessions(session_id),
     FOREIGN KEY (message_id) REFERENCES messages(message_id)
 );
@@ -122,6 +133,24 @@ CREATE TRIGGER IF NOT EXISTS messages_au AFTER UPDATE ON messages BEGIN
     INSERT INTO messages_fts(messages_fts, rowid, text_content) VALUES('delete', old.rowid, old.text_content);
     INSERT INTO messages_fts(rowid, text_content) VALUES (new.rowid, new.text_content);
 END;
+
+-- Explicit record of a fork/resume/cross-source relationship between two
+-- sessions, keyed by the detection that found it (see ingest.py's
+-- FORK_OVERLAP_THRESHOLD) rather than left as an implicit side effect of file
+-- processing order.
+CREATE TABLE IF NOT EXISTS session_links (
+    child_session_id  TEXT NOT NULL,
+    parent_session_id TEXT NOT NULL,
+    source            TEXT NOT NULL DEFAULT 'claude',
+    link_type         TEXT NOT NULL CHECK (link_type IN
+                        ('background_fork', 'resume', 'cross_source_reference')),
+    overlap_ratio     REAL,           -- fraction of the child's message_ids that already
+                                      -- existed under parent_session_id at detection time
+    detected_at       TEXT NOT NULL,  -- ISO8601, ingest run time, not session time
+    PRIMARY KEY (child_session_id, parent_session_id, source)
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_links_parent ON session_links(parent_session_id);
 """
 
 FILE_CHUNKS_SCHEMA = """

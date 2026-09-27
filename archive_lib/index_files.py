@@ -15,6 +15,7 @@ import hashlib
 import re
 import sqlite3
 import sys
+import unicodedata
 from pathlib import Path
 
 from .pyenv import ensure_semantic_capable
@@ -153,8 +154,21 @@ def resolve_path(rel_path: str, root_key: str | None,
                 f"file_registry entry {rel_path!r} has root='memory' but this "
                 "project's config.memory_root is None"
             )
-        return memory_root / rel_path
-    return project_root / rel_path
+        base = memory_root
+    else:
+        base = project_root
+
+    candidate = base / rel_path
+    if candidate.exists():
+        return candidate
+    # macOS stores filenames NFD-decomposed on disk; a registry string literal
+    # is typically typed as NFC. An exact match across that difference fails
+    # silently (file just never gets indexed), so try the other form too.
+    for form in ("NFC", "NFD"):
+        alt = base / unicodedata.normalize(form, rel_path)
+        if alt.exists():
+            return alt
+    return candidate
 
 
 def index_file(conn: sqlite3.Connection, model: SentenceTransformer,
