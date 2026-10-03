@@ -113,6 +113,36 @@ def _auto_update_if_stale(config: ProjectConfig, db: Path) -> None:
     if all_ok:
         print("[auto-update] done.", file=sys.stderr)
 
+    _warn_if_embeddings_stale(db)
+
+
+_EMBED_STALE_THRESHOLD = 200  # pending messages before warning (noise floor)
+
+
+def _warn_if_embeddings_stale(db: Path) -> None:
+    """Warn if many messages lack embeddings — semantic/hybrid search silently
+    degrades to zero-score for unembedded messages (see search_hybrid), so a
+    growing backlog here has no other visible symptom. Cheap COUNT query only
+    — does not run embed.py itself (that needs a model load, too slow for a
+    per-query check)."""
+    if not db.exists():
+        return
+    try:
+        conn = sqlite3.connect(db)
+        pending = conn.execute(
+            "SELECT COUNT(*) FROM messages m "
+            "LEFT JOIN embeddings e ON e.message_id = m.message_id "
+            "WHERE e.message_id IS NULL AND m.text_content IS NOT NULL "
+            "AND length(m.text_content) >= 40 AND m.role != 'tool_result'"
+        ).fetchone()[0]
+        conn.close()
+    except Exception:
+        return
+    if pending >= _EMBED_STALE_THRESHOLD:
+        print(f"[auto-update] {pending} messages pending embedding — semantic/hybrid "
+              f"search is missing recent content. Run embed.py (or !update.py).",
+              file=sys.stderr)
+
 
 _FTS_OPS = frozenset({"AND", "OR", "NOT", "NEAR"})
 

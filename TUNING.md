@@ -11,20 +11,18 @@
 ## Быстрый старт при тюнинге
 
 ```bash
-PYTHON=/usr/local/opt/python@3.10/Frameworks/Python.framework/Versions/3.10/bin/python3.10
-
 # 1. Unit-тесты (без модели, ~0.002 сек) — запускать после любого изменения archive_lib.query/index_files:
 python3 archive-lib/tests/test_query.py -v
 
 # 2. Полный eval для конкретного проекта (загружает модель):
-$PYTHON archive/scripts/eval.py               # Recall@K / MRR, K по умолчанию = сумма pool_guarantees
-$PYTHON archive/scripts/eval.py --verbose     # + топ-3 сниппета на каждый запрос
-$PYTHON archive/scripts/eval.py --k 6         # если тестируешь другой K
+python3 archive/scripts/eval.py               # Recall@K / MRR, K по умолчанию = сумма pool_guarantees
+python3 archive/scripts/eval.py --verbose     # + топ-3 сниппета на каждый запрос
+python3 archive/scripts/eval.py --k 6         # если тестируешь другой K
 
 # 3. Диагностика конкретного промаха:
-$PYTHON archive/scripts/query.py "запрос" --semantic --corpus files --limit 10
-$PYTHON archive/scripts/query.py "запрос" --semantic --corpus transcripts --limit 10
-$PYTHON archive/scripts/query.py "запрос" --hybrid --limit 10
+python3 archive/scripts/query.py "запрос" --semantic --corpus files --limit 10
+python3 archive/scripts/query.py "запрос" --semantic --corpus transcripts --limit 10
+python3 archive/scripts/query.py "запрос" --hybrid --limit 10
 ```
 
 ## Устаревание результатов по типу темы
