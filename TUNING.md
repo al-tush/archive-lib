@@ -107,7 +107,8 @@ _merge_pools(pools, k, guarantees):
 | `index_files.py` | Векторизация project/memory файлов; список и веса — в `config.file_registry` |
 | `query.py` | Поиск: FTS / semantic / hybrid / artifacts / multi-archive; `_merge_pools`, `_load_model` (с кэшем) |
 | `restore.py` | Полное восстановление сессии в markdown, с gap/pause-маркерами |
-| `eval.py` | Golden-set оценка (`config.golden_set`); Recall@K + MRR через реальный `search_semantic` |
+| `eval.py` | Golden-set оценка: `--mode semantic` (default, `config.golden_set`) — Recall@K + MRR через реальный `search_semantic`; `--mode full-scan` (`config.full_scan_golden_set`) — baseline vs `full_scan.py` покрытие, без Recall@K (нет единственно верного чанка) |
+| `full_scan.py` | Систематический обход кандидатов-сессий без top-k cap (альтернатива для подсчёта/агрегации и хронологического синтеза) — `enumerate_candidates`, `chronological_batches`, `restore_batch` |
 | `ai_time.py` | Время с ИИ по дням, по всем проектам из `registry.KNOWN_ARCHIVES` |
 | `update.py` | Полный цикл: ingest → copilot → embed → index_files |
 

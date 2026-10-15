@@ -995,6 +995,10 @@ def main(config: ProjectConfig, argv: list[str]) -> int:
             print(preview_sessions(conn, results, args.preview))
             return 0
 
+        full_scan_hint = None
+        if args.query and not args.semantic and not args.json:
+            full_scan_hint = _full_scan_hint(conn, args, results)
+
     finally:
         conn.close()
 
@@ -1002,7 +1006,49 @@ def main(config: ProjectConfig, argv: list[str]) -> int:
         print(json.dumps(results, ensure_ascii=False, indent=2))
     else:
         print(render_text(results, full=args.full))
+    if full_scan_hint:
+        print(full_scan_hint, file=sys.stderr)
     return 0
+
+
+def _full_scan_hint(conn: sqlite3.Connection, args, results: list[dict]) -> Optional[str]:
+    """Visible signal (not auto-classification — see тз_rag_full_scan_rlm_обход.md
+    п.3) that top-k is hiding candidates: a cheap FTS-only recount (no embedding
+    model load, unlike the --hybrid/--semantic path that may have produced
+    `results`) against the same already-sanitized/expanded args.query. Decision
+    to actually run full_scan.py stays with the caller."""
+    try:
+        from .full_scan import enumerate_candidates, looks_exhaustive
+        shown = {r.get("session_id") for r in results if r.get("session_id")}
+        total = len(enumerate_candidates(
+            conn, args.query, roles=getattr(args, "roles", None),
+            from_date=args.from_date, to_date=args.to_date,
+        ))
+        if total > max(len(shown) * 2, args.limit):
+            return (
+                f"\n[hint] Найдено {total} сессий-кандидатов, показаны топ-{len(shown)} "
+                f"по релевантности.\n       Если нужен полный хронологический охват "
+                f"(подсчёт/синтез истории) —\n       python3 archive/scripts/full_scan.py "
+                f"\"{args.query}\""
+            )
+        # Count-триггер выше не сработал (кандидатов немного, топ-K их почти все
+        # покрывает) — но вопрос всё равно может требовать ПОЛНОТЫ по смыслу
+        # формулировки (подсчёт/хронология/"все места"), а не просто топа по
+        # релевантности. Count и formulировка — разные сигналы, покрывают
+        # разные промахи (см. apteki b139dc52, 10.10.2026: --limit 8 ≈ total
+        # кандидатов, count-hint не сработал, хотя вопрос начинался с "найди
+        # все места").
+        if looks_exhaustive(args.query):
+            return (
+                f"\n[hint] Запрос похож на исчерпывающий (счёт/хронология/«все»/"
+                f"«каждый») — показаны {len(shown)} сессий по релевантности, это "
+                f"не гарантированно полный список.\n       Для систематического "
+                f"охвата —\n       python3 archive/scripts/full_scan.py "
+                f"\"{args.query}\""
+            )
+    except Exception:
+        pass
+    return None
 
 
 def _run_multi_archive(args, config: ProjectConfig) -> int:

@@ -18,6 +18,11 @@ from typing import Optional
 FileRegistryEntry = tuple[str, str, float, Optional[str]]
 # (query, expected_substring, description) — see eval.py
 GoldenSetEntry = tuple[str, str, str]
+# {"query": str, "class": str, "expected_facts": list[str]} — see eval.py's
+# --mode full-scan. Unlike GoldenSetEntry, there's no single right chunk to
+# recall — expected_facts are judged for presence, not matched by substring
+# (see archive_lib/eval.py's run_full_scan_eval docstring for why).
+FullScanGoldenSetEntry = dict
 
 DEFAULT_MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 
@@ -46,6 +51,7 @@ class ProjectConfig:
     pool_guarantees: dict[str, int] = field(default_factory=lambda: dict(DEFAULT_POOL_GUARANTEES))
     model_name: str = DEFAULT_MODEL_NAME
     golden_set: list[GoldenSetEntry] = field(default_factory=list)
+    full_scan_golden_set: list[FullScanGoldenSetEntry] = field(default_factory=list)
 
     @property
     def scripts_dir(self) -> Path:
